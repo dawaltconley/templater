@@ -1,6 +1,7 @@
 import fs from 'fs';
+import path from 'path';
+import slugify from 'slugify';
 import csv from 'csvtojson';
-// import mustache from 'mustache';
 import nunjucks from 'nunjucks';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -31,11 +32,18 @@ const parser = csv({ flatKeys: true });
 
 const [ template, data ] = await Promise.all([
     fs.promises.readFile(argv.template),
-    parser.fromFile(argv.data)
+    parser.fromFile(argv.data),
+    argv.output && fs.promises.mkdir(argv.output, { recursive: true })
 ]);
 
-for (const item of data) {
-    console.dir(item, {depth: null});
-    let str = nunjucks.renderString(template.toString(), item);
-    console.log(str);
-}
+await Promise.all(
+    data.map(item => {
+        let msg = nunjucks.renderString(template.toString(), item);
+        if (argv.output) {
+            let outPath = path.join(argv.output, `${slugify(Object.values(item)[0])}.txt`);
+            return fs.promises.writeFile(outPath, msg);
+        } else {
+            return process.stdout.write(msg);
+        }
+    })
+);

@@ -16,6 +16,7 @@
     "csvtojson": "^2.0.10",
     "nodemailer": "^6.6.2",
     "nunjucks": "^3.2.3",
+    "slugify": "^1.5.3",
     "yargs": "^17.0.1"
   },
   "devDependencies": {
