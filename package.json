@@ -1,0 +1,20 @@
+{
+  "name": "mailer",
+  "version": "0.1.0",
+  "description": "Quick and dirty sending emails based on templates.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dylan Awalt-Conley",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parse": "^4.16.0",
+    "mustache": "^4.2.0",
+    "nodemailer": "^6.6.2",
+    "yargs": "^17.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.30.0"
+  }
+}

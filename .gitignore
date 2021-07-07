@@ -1,0 +1,8 @@
+examples/
+node_modules/
+.cache/
+.DS_Store
+*~
+*.swp
+*.swo
+sh.exe.stackdump
