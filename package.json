@@ -13,9 +13,9 @@
   "author": "Dylan Awalt-Conley",
   "license": "ISC",
   "dependencies": {
-    "csv-parse": "^4.16.0",
-    "mustache": "^4.2.0",
+    "csvtojson": "^2.0.10",
     "nodemailer": "^6.6.2",
+    "nunjucks": "^3.2.3",
     "yargs": "^17.0.1"
   },
   "devDependencies": {

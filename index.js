@@ -1,11 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const csv = require('csv-parse');
-const mustache = require('mustache');
-const yargs = require('yargs/yargs');
-const { hideBin } = require('yargs/helpers');
-
-const p = (...args) => path.join(__dirname, ...args);
+import fs from 'fs';
+import csv from 'csvtojson';
+// import mustache from 'mustache';
+import nunjucks from 'nunjucks';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
 const argv = yargs(hideBin(process.argv))
     .options({
@@ -28,3 +26,16 @@ const argv = yargs(hideBin(process.argv))
         }
     })
     .argv;
+
+const parser = csv({ flatKeys: true });
+
+const [ template, data ] = await Promise.all([
+    fs.promises.readFile(argv.template),
+    parser.fromFile(argv.data)
+]);
+
+for (const item of data) {
+    console.dir(item, {depth: null});
+    let str = nunjucks.renderString(template.toString(), item);
+    console.log(str);
+}
