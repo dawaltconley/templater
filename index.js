@@ -1,4 +1,4 @@
-import fs from 'fs';
+import { promises as fsp } from 'fs';
 import path from 'path';
 import slugify from 'slugify';
 import csv from 'csvtojson';
@@ -31,9 +31,9 @@ const argv = yargs(hideBin(process.argv))
 const parser = csv({ flatKeys: true });
 
 const [ template, data ] = await Promise.all([
-    fs.promises.readFile(argv.template),
+    fsp.readFile(argv.template),
     parser.fromFile(argv.data),
-    argv.output && fs.promises.mkdir(argv.output, { recursive: true })
+    argv.output && fsp.mkdir(argv.output, { recursive: true })
 ]);
 
 await Promise.all(
@@ -41,7 +41,7 @@ await Promise.all(
         let msg = nunjucks.renderString(template.toString(), item);
         if (argv.output) {
             let outPath = path.join(argv.output, `${slugify(Object.values(item)[0])}.txt`);
-            return fs.promises.writeFile(outPath, msg);
+            return fsp.writeFile(outPath, msg);
         } else {
             return process.stdout.write(msg);
         }
