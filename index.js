@@ -1,5 +1,6 @@
 import { promises as fsp } from 'fs';
 import path from 'path';
+import { exec } from 'child_process';
 import slugify from 'slugify';
 import csv from 'csvtojson';
 import nunjucks from 'nunjucks';
@@ -24,24 +25,38 @@ const argv = yargs(hideBin(process.argv))
             alias: 'output',
             nargs: 1,
             type: 'string'
+        },
+        format: {
+            nargs: 1,
+            choices: [ 'txt', 'rtf', 'odt', 'html' ],
+            default: 'txt',
         }
     })
     .argv;
 
-const parser = csv({ flatKeys: true });
+const csvParser = csv({ flatKeys: true });
 
 const [ template, data ] = await Promise.all([
     fsp.readFile(argv.template),
-    parser.fromFile(argv.data),
+    csvParser.fromFile(argv.data),
     argv.output && fsp.mkdir(argv.output, { recursive: true })
 ]);
 
 await Promise.all(
     data.map(item => {
         let msg = nunjucks.renderString(template.toString(), item);
+        let outPath = path.join(argv.output, slugify(Object.values(item)[0]));
         if (argv.output) {
-            let outPath = path.join(argv.output, `${slugify(Object.values(item)[0])}.txt`);
-            return fsp.writeFile(outPath, msg);
+            if (argv.format === 'txt') {
+                return fsp.writeFile(`${outPath}.txt`, msg);
+            } else {
+                return new Promise((resolve, reject) => {
+                    const cmd = `pandoc -f markdown -o ${outPath.replace(/ /g, '\\ ')}.${argv.format}`;
+                    const convert = exec(cmd, (e, stdout, stderr) => e ? reject(stderr) : resolve(stdout));
+                    convert.stdin.write(msg);
+                    convert.stdin.end();
+                });
+            }
         } else {
             return process.stdout.write(msg);
         }
