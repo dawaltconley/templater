@@ -45,8 +45,10 @@ const [ template, data ] = await Promise.all([
 await Promise.all(
     data.map(item => {
         let msg = nunjucks.renderString(template.toString(), item);
-        let outPath = path.join(argv.output, slugify(Object.values(item)[0]));
+        msg = msg.replace(/(\n\s*){2,}/g, '\n\n');
+        let outPath = slugify(Object.values(item)[0]);
         if (argv.output) {
+            outPath = path.join(argv.output, outPath);
             if (argv.format === 'txt') {
                 return fsp.writeFile(`${outPath}.txt`, msg);
             } else {
