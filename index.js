@@ -6,6 +6,7 @@ import csv from 'csvtojson';
 import nunjucks from 'nunjucks';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import gender from './gender.js';
 
 const argv = yargs(hideBin(process.argv))
     .options({
@@ -42,9 +43,12 @@ const [ template, data ] = await Promise.all([
     argv.output && fsp.mkdir(argv.output, { recursive: true })
 ]);
 
+const nEnv = nunjucks.configure()
+    .addFilter('gender', gender);
+
 await Promise.all(
     data.map(item => {
-        let msg = nunjucks.renderString(template.toString(), item);
+        let msg = nEnv.renderString(template.toString(), item);
         msg = msg.replace(/(\n\s*){2,}/g, '\n\n');
         let outPath = slugify(Object.values(item)[0]);
         if (argv.output) {
