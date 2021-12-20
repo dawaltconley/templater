@@ -11,6 +11,8 @@ import { hideBin } from 'yargs/helpers';
 import gender from './gender.js';
 import { SES } from '@aws-sdk/client-ses';
 import yaml from 'js-yaml';
+import prompts from 'prompts';
+import PromiseThrottle from 'promise-throttle';
 
 const argv = yargs(hideBin(process.argv))
     .options({
@@ -64,55 +66,80 @@ const nEnv = nunjucks.configure()
 
 let testEmailQueued = false;
 
-await Promise.all(
-    data.map(item => {
-        if (argv.test && testEmailQueued)
-            return null;
-        let rendered = nEnv.renderString(template.toString(), item);
-        let { attributes, body, frontmatter } = fm(rendered);
-        body = body.replace(/(\n\s*){2,}/g, '\n\n');
-        let whole = frontmatter + '\n\n' + body;
-        let outPath = slugify(Object.values(item)[0]);
-        if (argv.send) {
-            let params = {
-                ...attributes,
-                Message: {
-                    Subject: {
-                        Data: attributes.Subject,
+let tasks = data.map(item => {
+    if (argv.test && testEmailQueued)
+        return null;
+    let rendered = nEnv.renderString(template.toString(), item);
+    let { attributes, body, frontmatter } = fm(rendered);
+    body = body.replace(/(\n\s*){2,}/g, '\n\n');
+    let whole = frontmatter + '\n\n' + body;
+    let outPath = slugify(Object.values(item)[0]);
+    if (argv.send) {
+        let params = {
+            ...attributes,
+            Message: {
+                Subject: {
+                    Data: attributes.Subject,
+                    Charset,
+                },
+                Body: {
+                    Html: {
+                        Data: md.render(body),
                         Charset,
-                    },
-                    Body: {
-                        Html: {
-                            Data: md.render(body),
-                            Charset,
-                        }
                     }
                 }
+            }
+        };
+        if (argv.test) {
+            delete params.Destination;
+            params.Destination = {
+                ToAddresses: [ argv.test ]
             };
-            if (argv.test) {
-                delete params.Destination;
-                params.Destination = {
-                    ToAddresses: [ argv.test ]
-                };
-                ses.sendEmail(params);
-                testEmailQueued = true;
-            } else {
-                return ses.sendEmail(params);
-            }
-        } else if (argv.output) {
-            outPath = path.join(argv.output, outPath);
-            if (argv.format === 'txt') {
-                return fsp.writeFile(`${outPath}.txt`, whole);
-            } else {
-                return new Promise((resolve, reject) => {
-                    const cmd = `pandoc -f markdown -o ${outPath.replace(/ /g, '\\ ')}.${argv.format}`;
-                    const convert = exec(cmd, (e, stdout, stderr) => e ? reject(stderr) : resolve(stdout));
-                    convert.stdin.write(whole);
-                    convert.stdin.end();
-                });
-            }
+            ses.sendEmail(params);
+            testEmailQueued = true;
+            return null;
         } else {
-            return process.stdout.write(whole);
+            return params;
         }
-    })
-);
+    } else if (argv.output) {
+        outPath = path.join(argv.output, outPath);
+        if (argv.format === 'txt') {
+            return fsp.writeFile(`${outPath}.txt`, whole);
+        } else {
+            return new Promise((resolve, reject) => {
+                const cmd = `pandoc -f markdown -o ${outPath.replace(/ /g, '\\ ')}.${argv.format}`;
+                const convert = exec(cmd, (e, stdout, stderr) => e ? reject(stderr) : resolve(stdout));
+                convert.stdin.write(whole);
+                convert.stdin.end();
+            });
+        }
+    } else {
+        return process.stdout.write(whole);
+    }
+});
+
+const sendRate = 10;
+
+if (argv.send && !argv.test) {
+    let promptChain = tasks.map((params, i) => ({
+        type: 'confirm',
+        name: i,
+        message: JSON.stringify(params, null, 2) + '\n\n' + 'Send this email?'
+    }));
+    let answers = await prompts(promptChain);
+
+    let throttle = new PromiseThrottle({
+        requestsPerSecond: sendRate,
+    });
+
+    tasks = tasks.map((params, i) => {
+        if (!answers[i])
+            return null;
+        let mailFunction = ses.sendEmail.bind(ses, params);
+        return throttle.add(mailFunction);
+    });
+
+    tasks = tasks.filter(t => t);
+}
+
+await Promise.all(tasks);
