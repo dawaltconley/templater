@@ -95,9 +95,8 @@ let tasks = data.map(item => {
             params.Destination = {
                 ToAddresses: [ argv.test ]
             };
-            ses.sendEmail(params);
             testEmailQueued = true;
-            return null;
+            return ses.sendEmail(params);
         } else {
             return params;
         }
