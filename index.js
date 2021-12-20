@@ -5,6 +5,7 @@ import slugify from 'slugify';
 import csv from 'csvtojson';
 import fm from 'front-matter';
 import MarkdownIt from 'markdown-it';
+import htmlToText from 'html-to-text';
 import nunjucks from 'nunjucks';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -75,6 +76,7 @@ let tasks = data.map(item => {
     let whole = frontmatter + '\n\n' + body;
     let outPath = slugify(Object.values(item)[0]);
     if (argv.send) {
+        let html = md.render(body);
         let params = {
             ...attributes,
             Message: {
@@ -83,8 +85,12 @@ let tasks = data.map(item => {
                     Charset,
                 },
                 Body: {
+                    Text: {
+                        Data: htmlToText.convert(html),
+                        Charset,
+                    },
                     Html: {
-                        Data: md.render(body),
+                        Data: html,
                         Charset,
                     }
                 }
